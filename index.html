@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoWatch - Environmental Complaint & Reporting Portal</title>
+  <meta name="description" content="Environmental hazard complaint filing, community upvoting, and admin locality-scoped resolution dashboard with geolocation and interactive map." />
+  <meta property="og:title" content="EcoWatch - Environmental Complaint & Reporting Portal" />
+  <meta property="og:description" content="Environmental hazard complaint filing, community upvoting, and admin locality-scoped resolution dashboard with geolocation and interactive map." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#report" class="brand" aria-label="EcoWatch home">
+        <span class="brand-mark" aria-hidden="true">&#127807;</span>
+        <span class="brand-name">EcoWatch</span>
+      </a>
+
+      <nav class="nav" id="nav" aria-label="Main">
+        <button class="nav-btn active" data-view="report">Report</button>
+        <button class="nav-btn" data-view="community">Community</button>
+        <button class="nav-btn" data-view="map">Map</button>
+        <button class="nav-btn" data-view="admin">Admin</button>
+      </nav>
+
+      <div class="session" id="session">
+        <span class="session-label" id="sessionLabel">Citizen</span>
+        <button class="btn btn-ghost btn-sm" id="sessionBtn">Admin login</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- REPORT -->
+    <section id="view-report" class="view active" aria-labelledby="reportTitle">
+      <div class="view-head">
+        <h1 id="reportTitle">Report an environmental hazard</h1>
+        <p class="muted">Tell us what you saw. Pin the exact spot so the right local team can act on it.</p>
+      </div>
+
+      <form id="complaintForm" class="card form-grid" novalidate>
+        <div class="field span-2">
+          <label for="title">Title</label>
+          <input id="title" name="title" type="text" maxlength="90" placeholder="e.g. Plastic burning behind the market" required />
+          <small class="error" data-error-for="title"></small>
+        </div>
+
+        <div class="field">
+          <label for="category">Category</label>
+          <select id="category" name="category" required></select>
+          <small class="error" data-error-for="category"></small>
+        </div>
+
+        <div class="field">
+          <label for="locality">Locality</label>
+          <select id="locality" name="locality" required></select>
+          <small class="error" data-error-for="locality"></small>
+        </div>
+
+        <div class="field">
+          <label for="severity">Severity</label>
+          <select id="severity" name="severity">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="reporter">Your name <span class="muted">(optional)</span></label>
+          <input id="reporter" name="reporter" type="text" maxlength="60" placeholder="Anonymous" />
+        </div>
+
+        <div class="field span-2">
+          <label for="description">Description</label>
+          <textarea id="description" name="description" rows="4" maxlength="800" placeholder="What is happening, since when, and who is affected?" required></textarea>
+          <small class="error" data-error-for="description"></small>
+        </div>
+
+        <div class="field span-2">
+          <div class="label-row">
+            <label>Location</label>
+            <button type="button" class="btn btn-secondary btn-sm" id="geoBtn">Use my location</button>
+          </div>
+          <div id="pickMap" class="map map-small" role="application" aria-label="Pick the complaint location on the map"></div>
+          <small class="muted" id="coordsText">Click the map or use your location to set the spot.</small>
+          <small class="error" data-error-for="location"></small>
+        </div>
+
+        <div class="actions span-2">
+          <button type="reset" class="btn btn-ghost" id="resetBtn">Clear</button>
+          <button type="submit" class="btn btn-primary">Submit complaint</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- COMMUNITY -->
+    <section id="view-community" class="view" aria-labelledby="communityTitle">
+      <div class="view-head">
+        <h1 id="communityTitle">Community reports</h1>
+        <p class="muted">Upvote issues that affect you too. The most supported ones rise to the top.</p>
+      </div>
+
+      <div class="filters card">
+        <select id="fCategory" aria-label="Filter by category"></select>
+        <select id="fLocality" aria-label="Filter by locality"></select>
+        <select id="fStatus" aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <select id="fSort" aria-label="Sort">
+          <option value="votes">Most upvoted</option>
+          <option value="new">Newest</option>
+        </select>
+        <input id="fSearch" type="search" placeholder="Search reports..." aria-label="Search reports" />
+      </div>
+
+      <div id="feed" class="feed" aria-live="polite"></div>
+    </section>
+
+    <!-- MAP -->
+    <section id="view-map" class="view" aria-labelledby="mapTitle">
+      <div class="view-head">
+        <h1 id="mapTitle">Hazard map</h1>
+        <p class="muted">Every report on one map. Marker color shows its status.</p>
+      </div>
+      <div class="legend">
+        <span><i class="dot dot-open"></i> Open</span>
+        <span><i class="dot dot-in_progress"></i> In progress</span>
+        <span><i class="dot dot-resolved"></i> Resolved</span>
+      </div>
+      <div id="mainMap" class="map map-large"></div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="view-admin" class="view" aria-labelledby="adminTitle">
+      <div class="view-head">
+        <h1 id="adminTitle">Admin dashboard</h1>
+        <p class="muted" id="adminSub">Sign in to manage complaints in your locality.</p>
+      </div>
+
+      <div id="adminLocked" class="card center">
+        <p>This area is for locality administrators.</p>
+        <button class="btn btn-primary" id="openLoginBtn">Admin login</button>
+      </div>
+
+      <div id="adminPanel" hidden>
+        <div class="stats" id="stats"></div>
+        <div id="adminList" class="feed"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <small>EcoWatch &middot; Demo data is stored only in your browser.</small>
+    </div>
+  </footer>
+
+  <!-- Admin login modal -->
+  <div class="modal" id="loginModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <form class="modal-card card" id="loginForm" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Admin login</h2>
+      <p class="muted">Admins can only manage complaints in the locality they are assigned to.</p>
+      <div class="field">
+        <label for="adminLocality">Assigned locality</label>
+        <select id="adminLocality"></select>
+      </div>
+      <div class="field">
+        <label for="adminPin">PIN</label>
+        <input id="adminPin" type="password" autocomplete="off" placeholder="Demo PIN: 1234" />
+        <small class="error" id="loginError"></small>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Sign in</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
